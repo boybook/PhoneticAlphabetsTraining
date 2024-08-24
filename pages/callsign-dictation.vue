@@ -14,9 +14,37 @@ const persist = usePersistence()
 const tts = useTTS()
 
 const callsign_only = ref(false)
+const std_only = ref(false)
 const answer_field = ref()
 const input_answer = ref('')
 const answer_state = ref<-1 | 0 | 1>(0)
+
+const saveToLocalStorage = () => {
+  localStorage.setItem("callsign_only", JSON.stringify(callsign_only.value));
+  localStorage.setItem("std_only", JSON.stringify(std_only.value));
+};
+
+const loadFromLocalStorage = () => {
+  const savedCallsignOnly = localStorage.getItem("callsign_only");
+  const savedStdOnly = localStorage.getItem("std_only");
+
+  if (savedCallsignOnly !== null) {
+    callsign_only.value = JSON.parse(savedCallsignOnly);
+  }
+  if (savedStdOnly !== null) {
+    std_only.value = JSON.parse(savedStdOnly);
+  }
+};
+
+watch(callsign_only, saveToLocalStorage);
+watch(std_only, () => {
+  saveToLocalStorage();
+  fuck_refresh_speech();
+});
+
+onMounted(() => {
+  loadFromLocalStorage();
+});
 
 const stats = ref({
   total: 0,
@@ -45,11 +73,20 @@ const fuck_new_challenge = () => {
   // const callsign_phonetic = callsign.split('').map(w => full_phonetic_dict[w] ? full_phonetic_dict[w][Math.floor(Math.random() * full_phonetic_dict[w].length)]?.word : w).join(',')
   // const callsign_phonetic = 'boston delta six papa mike egypt'.split(' ').map(w => full_phonetic_dict[w] ? full_phonetic_dict[w][Math.floor(Math.random() * full_phonetic_dict[w].length)]?.word : w).join('...')
   challenge.value = {
-    speech: persist.random_reply('cq', callsign),
+    speech: persist.random_reply('cq', callsign, std_only.value),
     answer: callsign,
   }
   input_answer.value = ''
   fuck_speech()
+}
+
+const fuck_refresh_speech = () => {
+  const callsign = challenge.value.answer;
+  if (!callsign) return;
+  challenge.value = {
+    speech: persist.random_reply('cq', callsign, std_only.value),
+    answer: callsign,
+  }
 }
 
 const fuck_speech = (slow: boolean = false) => {
@@ -61,7 +98,7 @@ const fuck_speech = (slow: boolean = false) => {
 }
 
 const fuck_qrz = () => {
-  tts.speech(persist.random_reply('qrz', challenge.value.answer), {
+  tts.speech(persist.random_reply('qrz', challenge.value.answer, std_only.value), {
     interrupt: true,
   })
   answer_field.value.focus()
@@ -144,17 +181,25 @@ onMounted(() => {
                maxlength="8" v-model="input_answer"/>
       </div>
       <div class="w-full flex flex-col-reverse md:flex-row justify-between gap-2 md:gap-0">
-        <div class="flex items-center gap-2 text-sm text-neutral-400 font-bold">
-          <UniToggle id="callsign_only" size="sm" v-model="callsign_only"/>
-          <div class="tooltip tooltip-bottom" data-tip="仅播放呼号而不套用模板">
+        <div class="flex items-center gap-4 text-sm text-neutral-400 font-bold">
+          <div class="flex items-center gap-2 text-sm text-neutral-400 font-bold">
+            <UniToggle id="callsign_only" size="sm" v-model="callsign_only"/>
+            <div class="tooltip tooltip-bottom" data-tip="仅播放呼号而不套用模板">
+              <label for="callsign_only" class="inline-flex items-center gap-0.5 cursor-help select-none">
+                快速模式
+                <svg class="mt-0.5" xmlns="http://www.w3.org/2000/svg" width="1.2em" height="1.2em" viewBox="0 0 24 24">
+                  <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="3">
+                    <path d="M12 16v.01M12 13a2 2 0 0 0 .914-3.782a1.98 1.98 0 0 0-2.414.483"/>
+                    <path d="M3 12a9 9 0 1 0 18 0a9 9 0 1 0-18 0"/>
+                  </g>
+                </svg>
+              </label>
+            </div>
+          </div>
+          <div class="flex items-center gap-2 text-sm text-neutral-400 font-bold">
+            <UniToggle id="std_only" size="sm" v-model="std_only"/>
             <label for="callsign_only" class="inline-flex items-center gap-0.5 cursor-help select-none">
-              快速模式
-              <svg class="mt-0.5" xmlns="http://www.w3.org/2000/svg" width="1.2em" height="1.2em" viewBox="0 0 24 24">
-                <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="3">
-                  <path d="M12 16v.01M12 13a2 2 0 0 0 .914-3.782a1.98 1.98 0 0 0-2.414.483"/>
-                  <path d="M3 12a9 9 0 1 0 18 0a9 9 0 1 0-18 0"/>
-                </g>
-              </svg>
+              仅标准解释法
             </label>
           </div>
         </div>

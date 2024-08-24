@@ -136,8 +136,8 @@ export const usePersistence = defineStore('persistence', () => {
         [key: string]: string
     } = {
         'China': 'B$c{A|D|G-I}$n{1-8}$c3{A-W}',
-        'HongKong': 'VR2$c3{A-W}',
-        'Macau': 'XX$n$c3{A-W}'
+        //'HongKong': 'VR2$c3{A-W}',
+        //'Macau': 'XX$n$c3{A-W}'
     }
 
     function to_phonetic(str: string): string[] {
@@ -159,19 +159,26 @@ export const usePersistence = defineStore('persistence', () => {
         return cqs[Math.floor(Math.random() * cqs.length)]
     }
 
-    function random_reply(type: 'cq' | 'qrz', callsign: string) {
+    function random_reply(type: 'cq' | 'qrz', callsign: string, stdOnly: boolean) {
         const persist = usePersistence()
         const full_phonetic_dict = {
             ...persist.phonetic_dict,
             ...persist.number_phonetic_dict
         }
-        const callsign_phonetic = callsign.split('').map(w => full_phonetic_dict[w] ? full_phonetic_dict[w][Math.floor(Math.random() * full_phonetic_dict[w].length)]?.word : w)
+        const callsign_phonetic_map: { [key: string]: string } = {};
+        const callsign_phonetic = callsign.split('').map(w => {
+            if (!callsign_phonetic_map[w]) {
+                const index = (stdOnly || Math.random() < 0.7) ? 0 : Math.floor(Math.random() * full_phonetic_dict[w].length);
+                callsign_phonetic_map[w] = full_phonetic_dict[w] ? full_phonetic_dict[w][index]?.word : w;
+            }
+            return callsign_phonetic_map[w];
+        });
 
         const cqs = [
-            `${callsign_phonetic}`,
-            `CQ, ${callsign_phonetic}, calling cq and standing by.`,
-            `CQ CQ CQ, This is ${callsign_phonetic}, standing by.`,
-            `My call sign is ${callsign_phonetic}, over.`,
+            `${callsign_phonetic.join(' ')}`,
+            `CQ, ${callsign_phonetic.join(' ')}, calling cq and standing by.`,
+            `CQ CQ CQ, This is ${callsign_phonetic.join(' ')}, standing by.`,
+            `My call sign is ${callsign_phonetic.join(' ')}, over.`,
         ]
         const qrz = [
             `This is ${callsign_phonetic.join('!')}, ${callsign.split('')}`,
